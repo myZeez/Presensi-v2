@@ -20,8 +20,13 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html, body {
+    height: 100%; /* Fallback */
+    margin: 0;
+}
+
 body {
-    background-color: var(--border); 
+    background-color: var(--border);
     color: var(--text-main);
     display: flex;
     justify-content: center;
@@ -31,7 +36,8 @@ body {
 .app-container {
     width: 100%;
     max-width: 480px; /* Mobile size restriction on desktop */
-    height: 100vh; /* Changed to fixed height 100vh for sticky nav */
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Dynamic viewport height to adapt to mobile browser toolbars */
     background-color: var(--surface);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
