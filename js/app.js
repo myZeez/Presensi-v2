@@ -144,8 +144,8 @@ function clearAllData() {
 
 // === Konfigurasi Geofencing ===
 // Silakan ganti titik kordinat latitude dan longitude ini dengan lokasi asli kantor.
-const OFFICE_LAT = -6.200000; // Contoh Latitude (Jakarta)
-const OFFICE_LNG = 106.816666; // Contoh Longitude
+const OFFICE_LAT = -2.214475739572245; // Titik Latitude Kantor
+const OFFICE_LNG = 113.90436984117133; // Titik Longitude Kantor
 const MAX_RADIUS = 500; // Jarak maksimal dalam meter
 
 function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
