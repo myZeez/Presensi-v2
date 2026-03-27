@@ -160,9 +160,9 @@ function clearAllData() {
 }
 
 // === Konfigurasi Geofencing ===
-const OFFICE_LAT = -2.214580262625776;
-const OFFICE_LNG = 113.90431682645999; 
-const MAX_RADIUS = 300; 
+const OFFICE_LAT = -2.2146976187137324;
+const OFFICE_LNG = 113.90440950897644; 
+const MAX_RADIUS = 15; 
 
 function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
     var R = 6371000; 
