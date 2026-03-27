@@ -143,13 +143,12 @@ function clearAllData() {
 }
 
 // === Konfigurasi Geofencing ===
-// Silakan ganti titik kordinat latitude dan longitude ini dengan lokasi asli kantor.
-const OFFICE_LAT = -2.214475739572245; // Titik Latitude Kantor
-const OFFICE_LNG = 113.90436984117133; // Titik Longitude Kantor
-const MAX_RADIUS = 500; // Jarak maksimal dalam meter
+const OFFICE_LAT = -2.214580262625776;
+const OFFICE_LNG = 113.90431682645999; 
+const MAX_RADIUS = 300; 
 
 function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-    var R = 6371000; // Radius bumi dalam meter
+    var R = 6371000; 
     var dLat = deg2rad(lat2-lat1);  
     var dLon = deg2rad(lon2-lon1); 
     var a = 
@@ -174,6 +173,12 @@ function handleMainAction() {
     const todayStr = getTodayString();
     const todayRecords = attendanceData.filter(r => r.date === todayStr);
 
+    const hasIzin = todayRecords.some(r => r.type.includes('Izin'));
+    if (hasIzin) {
+        alert("Anda sudah berstatus Izin hari ini. Tombol ini tidak berfungsi.");
+        return;
+    }
+
     const hasMasuk = todayRecords.some(r => r.type === 'Masuk');
     const hasIstirahat = todayRecords.some(r => r.type === 'Istirahat');
     const hasMasukKembali = todayRecords.some(r => r.type === 'Masuk Kembali');
@@ -193,6 +198,15 @@ function handleMainAction() {
 function recordAttendance(type, notes = "") {
     if(!currentUser) {
         alert("Harap lengkapi profil di menu Pengaturan terlebih dahulu.");
+        return;
+    }
+
+    const todayStr = getTodayString();
+    const todayRecords = attendanceData.filter(r => r.date === todayStr);
+    const hasIzin = todayRecords.some(r => r.type.includes('Izin'));
+
+    if (hasIzin && !type.includes('Izin')) {
+        alert("Anda sudah berstatus Izin hari ini.");
         return;
     }
 
@@ -301,12 +315,17 @@ function renderTodayStatus() {
     // Update Main Action Button Look and Function
     const mainBtn = document.getElementById('main-action-btn');
     if (mainBtn) {
+        const hasIzin = todayRecords.some(r => r.type.includes('Izin'));
         const hasMasuk = todayRecords.some(r => r.type === 'Masuk');
         const hasIstirahat = todayRecords.some(r => r.type === 'Istirahat');
         const hasMasukKembali = todayRecords.some(r => r.type === 'Masuk Kembali');
         const hasPulang = todayRecords.some(r => r.type === 'Pulang');
 
-        if (!hasMasuk) {
+        if (hasIzin) {
+            mainBtn.innerText = 'Izin (Selesai)';
+            mainBtn.className = 'btn-main btn-disabled mt-4';
+            mainBtn.disabled = true;
+        } else if (!hasMasuk) {
             mainBtn.innerText = 'Masuk';
             mainBtn.className = 'btn-main btn-white mt-4';
             mainBtn.disabled = false;
