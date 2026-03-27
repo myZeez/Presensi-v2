@@ -142,6 +142,26 @@ function clearAllData() {
     });
 }
 
+// === Konfigurasi Geofencing ===
+// Silakan ganti titik kordinat latitude dan longitude ini dengan lokasi asli kantor.
+const OFFICE_LAT = -6.200000; // Contoh Latitude (Jakarta)
+const OFFICE_LNG = 106.816666; // Contoh Longitude
+const MAX_RADIUS = 500; // Jarak maksimal dalam meter
+
+function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+    var R = 6371000; // Radius bumi dalam meter
+    var dLat = deg2rad(lat2-lat1);  
+    var dLon = deg2rad(lon2-lon1); 
+    var a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2); 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; 
+}
+
+function deg2rad(deg) { return deg * (Math.PI/180); }
+
 // === Core Presensi Logic ===
 
 function handleMainAction() {
@@ -176,6 +196,50 @@ function recordAttendance(type, notes = "") {
         return;
     }
 
+    // Jika Izin, tidak butuh cek lokasi fisik
+    if (type.includes('Izin')) {
+        saveAttendanceData(type, notes);
+        return;
+    }
+
+    // Cek Geofencing untuk absen harian dan lembur
+    if (!navigator.geolocation) {
+        alert("Browser atau perangkat HP Anda tidak mendukung fitur GPS/Lokasi.");
+        return;
+    }
+
+    const mainBtn = document.getElementById('main-action-btn');
+    const originalText = mainBtn && !type.includes('Lembur') ? mainBtn.innerText : '';
+    if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = 'Mencari GPS...';
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            // Laporan sukses membaca GPS
+            if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = originalText;
+            
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            const distance = getDistanceFromLatLonInM(OFFICE_LAT, OFFICE_LNG, userLat, userLng);
+
+            // Validasi jarak
+            if (distance <= MAX_RADIUS) {
+                saveAttendanceData(type, notes);
+            } else {
+                alert(`Gagal Absen! Anda berada di luar radius kantor.\n\nJarak Anda: ${Math.round(distance)} meter\nRadius batas: ${MAX_RADIUS} meter.`);
+            }
+        },
+        (error) => {
+            // Laporan gagal baca GPS
+            if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = originalText;
+            console.error(error);
+            alert("Presensi gagal karena GPS tidak terbaca! Pastikan Anda menyalakan akses Lokasi (GPS) dan memberikan izin saat diminta browser.");
+        },
+        // Minta paksa akurasi tertinggi
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+function saveAttendanceData(type, notes = "") {
     const now = new Date();
     const dateStr = getTodayString();
     const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -199,12 +263,13 @@ function recordAttendance(type, notes = "") {
     attendanceData.push(record);
     localStorage.setItem('attendance_data', JSON.stringify(attendanceData));
     
-    // Jika lembur jangan tampilkan alert gede/mengganggu
-    if (type !== 'Lembur') {
-        // Tampilkan feedback ringan saja
-        console.log(`Berhasil mencatat absensi: ${type} pada ${record.time}`);
-    } else {
+    // Validasi notifikasi
+    if (type === 'Lembur') {
         alert('Lembur berhasil dicatat!');
+    } else if (type.includes('Izin')) {
+        alert(`Pengajuan ${type} berhasil dicatat.`);
+    } else {
+        alert(`Presensi ${type} berhasil pada pukul ${record.time}`);
     }
     
     renderTodayStatus();
