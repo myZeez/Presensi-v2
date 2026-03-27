@@ -50,10 +50,27 @@ let attendanceData = JSON.parse(localStorage.getItem('attendance_data')) || [];
 document.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 1000);
-    
+    initReportFilter();
     checkProfile();
     renderTodayStatus();
 });
+
+function initReportFilter() {
+    const filter = document.getElementById('report-month-filter');
+    if(filter && filter.options.length === 0) {
+        const now = new Date();
+        for (let i = 0; i <= 3; i++) {
+            let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            let monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            let label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+            
+            let opt = document.createElement('option');
+            opt.value = monthStr;
+            opt.innerText = label;
+            filter.appendChild(opt);
+        }
+    }
+}
 
 // === UI Updaters ===
 function updateClock() {
@@ -382,7 +399,7 @@ function renderTodayStatus() {
 }
 
 // === Report & Alpa Logic ===
-function renderReport() {
+function renderReport(monthStr) {
     const reportListContainer = document.getElementById('monthly-report-list');
     
     let totalHadir = 0;
@@ -390,14 +407,25 @@ function renderReport() {
     let totalAlpa = 0;
     let html = '';
 
-    // Hanya ambil data bulan ini dari attendanceData
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Gunakan monthStr atau ambil dari filter dropdown
+    let targetMonthStr = monthStr && typeof monthStr === 'string' ? monthStr : null;
+    const filter = document.getElementById('report-month-filter');
+    
+    if (!targetMonthStr && filter) {
+        targetMonthStr = filter.value;
+    } else if (filter) {
+        filter.value = targetMonthStr;
+    }
+    
+    if (!targetMonthStr) {
+        const now = new Date();
+        targetMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
 
     // Kelompokkan data per tanggal
     const recordsByDate = {};
     attendanceData.forEach(r => {
-        if(r.date.startsWith(currentMonthStr)) {
+        if(r.date.startsWith(targetMonthStr)) {
             if(!recordsByDate[r.date]) {
                 recordsByDate[r.date] = [];
             }
@@ -487,7 +515,7 @@ function renderReport() {
     });
 
     if(html === '') {
-        html = '<p class="empty-state">Belum ada data presensi bulan ini.</p>';
+        html = '<p class="empty-state">Belum ada data presensi pada bulan ini.</p>';
     }
 
     reportListContainer.innerHTML = html;
@@ -504,18 +532,27 @@ function printPDF() {
         return;
     }
 
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthName = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    let targetMonthStr;
+    const filter = document.getElementById('report-month-filter');
+    if (filter && filter.value) {
+        targetMonthStr = filter.value;
+    } else {
+        const now = new Date();
+        targetMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const [year, month] = targetMonthStr.split('-');
+    const dt = new Date(year, month - 1, 1);
+    const monthName = dt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
     let printWindow = window.open('', '', 'width=800,height=600');
     
     let tableRows = '';
     const recordsByDate = {};
     
-    // Ambil rekap bulan ini saja
+    // Ambil rekap bulan yang dipilih saja
     attendanceData.forEach(r => {
-        if(r.date.startsWith(currentMonthStr)) {
+        if(r.date.startsWith(targetMonthStr)) {
             if(!recordsByDate[r.date]) {
                 recordsByDate[r.date] = [];
             }

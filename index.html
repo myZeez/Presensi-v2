@@ -48,7 +48,9 @@
             <!-- SECTION: REPORT (Laporan Bulanan) -->
             <section id="section-report" class="view-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 class="section-title" style="margin: 0;">Laporan Bulan Ini</h2>
+                    <select id="report-month-filter" onchange="renderReport(this.value)" style="font-size: 1.25rem; font-weight: 700; border: none; background: transparent; outline: none; padding: 0; color: var(--text-main); cursor: pointer;">
+                        <!-- Options diisi oleh JavaScript -->
+                    </select>
                     <button class="btn-primary" onclick="printPDF()" style="padding: 8px 12px; border-radius: 8px; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
                         <i class="ph ph-printer"></i> Cetak PDF
                     </button>
