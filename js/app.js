@@ -263,10 +263,20 @@ function recordAttendance(type, notes = "") {
             // Laporan gagal baca GPS
             if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = originalText;
             console.error(error);
-            alert("Presensi gagal karena GPS tidak terbaca! Pastikan Anda menyalakan akses Lokasi (GPS) dan memberikan izin saat diminta browser.");
+            
+            let errorMessage = "Presensi gagal karena GPS tidak terbaca! Pastikan Anda menyalakan akses Lokasi (GPS).";
+            if (error.code === 1) {
+                errorMessage = "Akses lokasi ditolak oleh iOS/Browser. Silakan buka Pengaturan > Privasi > Layanan Lokasi (atau pengaturan Safari/Chrome) dan izinkan akses lokasi untuk situs ini.";
+            } else if (error.code === 2) {
+                errorMessage = "Sinyal GPS tidak tersedia atau lemah. Cobalah berpindah ke area luar ruangan atau pastikan koneksi internet stabil.";
+            } else if (error.code === 3) {
+                errorMessage = "Pencarian GPS Timeout. Sinyal GPS butuh waktu lama untuk merespons, silakan coba lagi.";
+            }
+            
+            alert(errorMessage);
         },
-        // Minta paksa akurasi tertinggi
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        // Sedikit rileks untuk perangkat iOS
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
     );
 }
 
