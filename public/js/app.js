@@ -20,19 +20,19 @@ function showCustomConfirm(message, onConfirm) {
     const confirmModal = document.getElementById('custom-confirm');
     const confirmMsg = document.getElementById('custom-confirm-message');
     const btnYes = document.getElementById('btn-custom-confirm-yes');
-    
+
     if (confirmModal && confirmMsg && btnYes) {
         confirmMsg.innerText = message;
-        
+
         // Remove old event listeners
         const newBtnYes = btnYes.cloneNode(true);
         btnYes.parentNode.replaceChild(newBtnYes, btnYes);
-        
+
         newBtnYes.addEventListener('click', () => {
             closeCustomConfirm();
             if(typeof onConfirm === 'function') onConfirm();
         });
-        
+
         confirmModal.classList.add('active');
     }
 }
@@ -42,28 +42,49 @@ function closeCustomConfirm() {
     if (confirmModal) confirmModal.classList.remove('active');
 }
 
-// === State & Data Management ===
-let currentUser = JSON.parse(localStorage.getItem('user_profile')) || null;
+// Profile Management is bypassed in Laravel
+let currentUser = { name: "Karyawan", position: "Posisi", status: "Karyawan" }; // Dummy to pass local JS validation for now
 let attendanceData = JSON.parse(localStorage.getItem('attendance_data')) || [];
+let timeOffset = 0; // Offset untuk menyesuaikan waktu dari server
+
+async function syncServerTime() {
+    try {
+        const response = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jakarta');
+        if (response.ok) {
+            const data = await response.json();
+            const serverDate = new Date(data.datetime);
+            const deviceDate = new Date();
+            timeOffset = serverDate.getTime() - deviceDate.getTime();
+            console.log("Waktu disinkronkan dengan server. Offset: ", timeOffset, "ms");
+            updateClock();
+        }
+    } catch (error) {
+        console.error("Gagal sinkronisasi waktu dari server, menggunakan waktu perangkat:", error);
+    }
+}
+
+function getTrueDate() {
+    return new Date(Date.now() + timeOffset);
+}
 
 // === Initialization ===
 document.addEventListener('DOMContentLoaded', () => {
+    syncServerTime();
     updateClock();
     setInterval(updateClock, 1000);
     initReportFilter();
-    checkProfile();
     renderTodayStatus();
 });
 
 function initReportFilter() {
     const filter = document.getElementById('report-month-filter');
     if(filter && filter.options.length === 0) {
-        const now = new Date();
+        const now = getTrueDate();
         for (let i = 0; i <= 3; i++) {
             let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             let monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            let label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-            
+            let label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
+
             let opt = document.createElement('option');
             opt.value = monthStr;
             opt.innerText = label;
@@ -74,16 +95,17 @@ function initReportFilter() {
 
 // === UI Updaters ===
 function updateClock() {
-    const now = new Date();
-    
+    const now = getTrueDate();
+
     // Date formatting specifically for Hero
-    const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' };
     const dateEl = document.getElementById('hero-date');
     if(dateEl) dateEl.innerText = now.toLocaleDateString('id-ID', optionsDate);
 }
 
 function getTodayString() {
-    return new Date().toISOString().split('T')[0];
+    // Format YYYY-MM-DD menggunakan zona waktu Jakarta (WIB)
+    return getTrueDate().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 }
 
 // === Navigation ===
@@ -92,7 +114,7 @@ function switchTab(tabId, el) {
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
     // Show target section
     document.getElementById(`section-${tabId}`).classList.add('active');
-    
+
     // Update Nav UI
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     el.classList.add('active');
@@ -106,11 +128,11 @@ function switchTab(tabId, el) {
 function checkProfile() {
     const greeting = document.getElementById('hero-title');
     const role = document.getElementById('hero-subtitle');
-    
+
     // Setting up the dashboard profile view
     const mainGreeting = document.getElementById('hero-title');
     const mainRole = document.getElementById('hero-subtitle');
-    
+
     if(currentUser) {
         if(mainGreeting) mainGreeting.innerHTML = `Halo, <strong>${currentUser.name}</strong>`;
         if(mainRole) mainRole.innerText = `${currentUser.position} • ${currentUser.status}`;
@@ -132,7 +154,7 @@ function saveProfile() {
 
     currentUser = { name, position, status };
     localStorage.setItem('user_profile', JSON.stringify(currentUser));
-    
+
     alert("Profil berhasil disimpan!");
     checkProfile();
 }
@@ -160,20 +182,20 @@ function clearAllData() {
 }
 
 // === Konfigurasi Geofencing ===
-const OFFICE_LAT = -2.2146976187137324;
-const OFFICE_LNG = 113.90440950897644; 
-const MAX_RADIUS = 15; 
+const OFFICE_LAT = -2.2146623349058703;
+const OFFICE_LNG = 113.90432819106759;
+const MAX_RADIUS = 30;
 
 function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-    var R = 6371000; 
-    var dLat = deg2rad(lat2-lat1);  
-    var dLon = deg2rad(lon2-lon1); 
-    var a = 
+    var R = 6371000;
+    var dLat = deg2rad(lat2-lat1);
+    var dLon = deg2rad(lon2-lon1);
+    var a =
         Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2); 
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    return R * c; 
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }
 
 function deg2rad(deg) { return deg * (Math.PI/180); }
@@ -247,14 +269,14 @@ function recordAttendance(type, notes = "") {
         (position) => {
             // Laporan sukses membaca GPS
             if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = originalText;
-            
+
             const userLat = position.coords.latitude;
             const userLng = position.coords.longitude;
             const distance = getDistanceFromLatLonInM(OFFICE_LAT, OFFICE_LNG, userLat, userLng);
 
             // Validasi jarak
             if (distance <= MAX_RADIUS) {
-                saveAttendanceData(type, notes);
+                saveAttendanceData(type, notes, userLat, userLng);
             } else {
                 alert(`Gagal Absen! Anda berada di luar radius kantor.\n\nJarak Anda: ${Math.round(distance)} meter\nRadius batas: ${MAX_RADIUS} meter.`);
             }
@@ -263,7 +285,7 @@ function recordAttendance(type, notes = "") {
             // Laporan gagal baca GPS
             if(mainBtn && !type.includes('Lembur')) mainBtn.innerText = originalText;
             console.error(error);
-            
+
             let errorMessage = "Presensi gagal karena GPS tidak terbaca! Pastikan Anda menyalakan akses Lokasi (GPS).";
             if (error.code === 1) {
                 errorMessage = "Akses lokasi ditolak oleh iOS/Browser. Silakan buka Pengaturan > Privasi > Layanan Lokasi (atau pengaturan Safari/Chrome) dan izinkan akses lokasi untuk situs ini.";
@@ -272,7 +294,7 @@ function recordAttendance(type, notes = "") {
             } else if (error.code === 3) {
                 errorMessage = "Pencarian GPS Timeout. Sinyal GPS butuh waktu lama untuk merespons, silakan coba lagi.";
             }
-            
+
             alert(errorMessage);
         },
         // Sedikit rileks untuk perangkat iOS
@@ -280,14 +302,14 @@ function recordAttendance(type, notes = "") {
     );
 }
 
-function saveAttendanceData(type, notes = "") {
-    const now = new Date();
+function saveAttendanceData(type, notes = "", lat = null, lng = null) {
+    const now = getTrueDate();
     const dateStr = getTodayString();
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-    
-    // Cegah double entry untuk state yang sama
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' }).replace(/\./g, ':');
+
+    // Cegah double entry untuk state yang sama di cache lokal sementara
     const todayRecords = attendanceData.filter(r => r.date === dateStr);
-    
+
     if (todayRecords.some(r => r.type === type) && type !== 'Lembur') {
         alert(`Anda sudah melakukan absensi ${type} hari ini.`);
         return;
@@ -295,25 +317,47 @@ function saveAttendanceData(type, notes = "") {
 
     const record = {
         date: dateStr,
-        time: timeStr.replace(/\./g, ':'),
+        time: timeStr,
         type: type,
         timestamp: now.getTime(),
-        notes: notes
+        notes: notes,
+        latitude: lat,
+        longitude: lng
     };
 
-    attendanceData.push(record);
-    localStorage.setItem('attendance_data', JSON.stringify(attendanceData));
-    
-    // Validasi notifikasi
-    if (type === 'Lembur') {
-        alert('Lembur berhasil dicatat!');
-    } else if (type.includes('Izin')) {
-        alert(`Pengajuan ${type} berhasil dicatat.`);
-    } else {
-        alert(`Presensi ${type} berhasil pada pukul ${record.time}`);
-    }
-    
-    renderTodayStatus();
+    // Kirim data ke backend Laravel
+    fetch('/attendance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(record)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            attendanceData.push(record);
+            localStorage.setItem('attendance_data', JSON.stringify(attendanceData));
+
+            // Validasi notifikasi
+            if (type === 'Lembur') {
+                alert('Lembur berhasil dicatat!');
+            } else if (type.includes('Izin')) {
+                alert(`Pengajuan ${type} berhasil dicatat.`);
+            } else {
+                alert(`Presensi ${type} berhasil pada pukul ${record.time}`);
+            }
+
+            renderTodayStatus();
+        } else {
+            alert('Gagal menyimpan presensi ke server. Coba lagi.');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving attendance:', error);
+        alert('Terjadi kesalahan jaringan saat menyimpan presensi.');
+    });
 }
 
 // === Izin Handling ===
@@ -323,13 +367,13 @@ function closeIzinModal() { document.getElementById('modal-izin').classList.remo
 function submitIzin() {
     const type = document.getElementById('select-izin').value;
     const todayRecords = attendanceData.filter(r => r.date === getTodayString());
-    
+
     if(todayRecords.some(r => r.type.includes('Izin'))) {
         alert("Anda sudah mengajukan Izin untuk hari ini.");
         closeIzinModal();
         return;
     }
-    
+
     recordAttendance(type);
     closeIzinModal();
 }
@@ -338,7 +382,7 @@ function submitIzin() {
 function renderTodayStatus() {
     const todayStr = getTodayString();
     const todayRecords = attendanceData.filter(r => r.date === todayStr);
-    
+
     // Update Main Action Button Look and Function
     const mainBtn = document.getElementById('main-action-btn');
     if (mainBtn) {
@@ -404,14 +448,14 @@ function renderTodayStatus() {
             </div>
         `;
     });
-    
+
     timelineContainer.innerHTML = timelineHtml;
 }
 
 // === Report & Alpa Logic ===
 function renderReport(monthStr) {
     const reportListContainer = document.getElementById('monthly-report-list');
-    
+
     let totalHadir = 0;
     let totalIzin = 0;
     let totalAlpa = 0;
@@ -420,15 +464,15 @@ function renderReport(monthStr) {
     // Gunakan monthStr atau ambil dari filter dropdown
     let targetMonthStr = monthStr && typeof monthStr === 'string' ? monthStr : null;
     const filter = document.getElementById('report-month-filter');
-    
+
     if (!targetMonthStr && filter) {
         targetMonthStr = filter.value;
     } else if (filter) {
         filter.value = targetMonthStr;
     }
-    
+
     if (!targetMonthStr) {
-        const now = new Date();
+        const now = getTrueDate();
         targetMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
 
@@ -449,11 +493,11 @@ function renderReport(monthStr) {
     sortedDates.forEach(dateStr => {
         const dayRecords = recordsByDate[dateStr];
         const loopDate = new Date(dateStr);
-        const dayStrRender = loopDate.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short'});
+        const dayStrRender = loopDate.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta'});
 
-        const isIzin = dayRecords.some(r => r.type.includes('Izin'));     
+        const isIzin = dayRecords.some(r => r.type.includes('Izin'));
         const isMasuk = dayRecords.some(r => r.type === 'Masuk');
-        const isPulang = dayRecords.some(r => r.type === 'Pulang');       
+        const isPulang = dayRecords.some(r => r.type === 'Pulang');
 
         let statusClass = '';
         let statusText = '';
@@ -469,8 +513,8 @@ function renderReport(monthStr) {
             statusClass = 'hadir';
             statusText = 'Hadir';
 
-            // Pengecekan Presensi 9 Jam. Jika masuk, tapi tidak pulang.    
-            if(isMasuk && !isPulang && dateStr !== getTodayString()) {  
+            // Pengecekan Presensi 9 Jam. Jika masuk, tapi tidak pulang.
+            if(isMasuk && !isPulang && dateStr !== getTodayString()) {
                  statusText = 'Hadir (Tidak Tuntas)';
             } else if(isMasuk && isPulang) {
                  const tIn = dayRecords.find(r=>r.type==='Masuk').timestamp;
@@ -488,7 +532,7 @@ function renderReport(monthStr) {
 
         // Generate timeline UI for Report
         let timelineHtml = '<div class="timeline-container" style="padding: 12px; margin-top: 12px; border-radius: 12px; gap: 16px;">';
-        
+
         if(isIzin) {
             timelineHtml += `
             <div class="timeline-item">
@@ -547,19 +591,19 @@ function printPDF() {
     if (filter && filter.value) {
         targetMonthStr = filter.value;
     } else {
-        const now = new Date();
+        const now = getTrueDate();
         targetMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
 
     const [year, month] = targetMonthStr.split('-');
     const dt = new Date(year, month - 1, 1);
-    const monthName = dt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const monthName = dt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
 
     let printWindow = window.open('', '', 'width=800,height=600');
-    
+
     let tableRows = '';
     const recordsByDate = {};
-    
+
     // Ambil rekap bulan yang dipilih saja
     attendanceData.forEach(r => {
         if(r.date.startsWith(targetMonthStr)) {
@@ -571,13 +615,13 @@ function printPDF() {
     });
 
     // Urutkan maju (tanggal awal -> akhir) untuk laporan
-    const sortedDates = Object.keys(recordsByDate).sort((a,b) => a.localeCompare(b)); 
+    const sortedDates = Object.keys(recordsByDate).sort((a,b) => a.localeCompare(b));
 
     sortedDates.forEach(dateStr => {
         const dayRecords = recordsByDate[dateStr];
         const loopDate = new Date(dateStr);
-        const dayStr = loopDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'});
-        
+        const dayStr = loopDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta'});
+
         let masuk = dayRecords.find(r => r.type === 'Masuk')?.time || '-';
         let istirahat = dayRecords.find(r => r.type === 'Istirahat')?.time || '-';
         let masukKembali = dayRecords.find(r => r.type === 'Masuk Kembali')?.time || '-';
